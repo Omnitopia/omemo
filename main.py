@@ -542,10 +542,20 @@ async def chat_completions(request: Request):
                             if tag_buffer.endswith(MEMORY_CLOSE):
                                 debug_print(f"[流式响应] 检测到</memory>结束")
                                 in_memory = False
+                                # 获取 </memory> 之后的内容
+                                close_pos = tag_buffer.rfind(MEMORY_CLOSE)
+                                after_close = tag_buffer[close_pos + len(MEMORY_CLOSE):]
                                 tag_buffer = ""
-                            # 限制缓冲区长度
-                            if len(tag_buffer) > 20:
-                                tag_buffer = tag_buffer[-15:]
+                                # 如果 </memory> 后面还有内容，需要继续处理
+                                if after_close:
+                                    # 递归处理后续内容
+                                    result = ""
+                                    for c in after_close:
+                                        result += process_content_char(c)
+                                    return result
+                            # 限制缓冲区长度（但保留足够长度以检测 </memory>）
+                            if len(tag_buffer) > 100:
+                                tag_buffer = tag_buffer[-50:]
                             return ""
                         else:
                             # 不在 memory 标签内
