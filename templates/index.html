@@ -8,9 +8,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- 移动端侧边栏遮罩 -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    
     <div class="container">
         <!-- 侧边栏 -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="logo">
                 <i class="fas fa-brain"></i>
                 <span>Omni Memory</span>
@@ -47,7 +50,12 @@
         <main class="main-content">
             <!-- 顶部栏 -->
             <header class="header">
-                <h1 id="page-title">API端点管理</h1>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="mobile-menu-btn" id="mobile-menu-btn" style="display: none;">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="page-title">API端点管理</h1>
+                </div>
                 <div class="header-actions">
                     <button class="btn btn-secondary" id="refresh-btn">
                         <i class="fas fa-refresh"></i> 刷新

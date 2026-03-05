@@ -110,18 +110,35 @@ function initElements() {
     elements.cancelAliasBtn = document.getElementById('cancel-alias-btn');
     elements.saveAliasBtn = document.getElementById('save-alias-btn');
     
+    // 移动端菜单
+    elements.mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    elements.sidebar = document.getElementById('sidebar');
+    elements.sidebarOverlay = document.getElementById('sidebar-overlay');
+    
     // 其他
     elements.refreshBtn = document.getElementById('refresh-btn');
     elements.toastContainer = document.getElementById('toast-container');
 }
 
 function bindEvents() {
+    // 移动端菜单
+    if (elements.mobileMenuBtn) {
+        elements.mobileMenuBtn.addEventListener('click', toggleMobileSidebar);
+    }
+    if (elements.sidebarOverlay) {
+        elements.sidebarOverlay.addEventListener('click', closeMobileSidebar);
+    }
+    
     // 导航切换
     elements.navItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             const section = item.dataset.section;
             switchSection(section);
+            // 移动端点击导航后关闭侧边栏
+            if (window.innerWidth <= 768) {
+                closeMobileSidebar();
+            }
         });
     });
     
@@ -1179,3 +1196,15 @@ window.deleteMemory = deleteMemory;
 window.logout = logout;
 window.copySessionKey = copySessionKey;
 window.openAliasModal = openAliasModal;
+
+// ==================== 移动端菜单 ====================
+
+function toggleMobileSidebar() {
+    elements.sidebar.classList.toggle('open');
+    elements.sidebarOverlay.classList.toggle('show');
+}
+
+function closeMobileSidebar() {
+    elements.sidebar.classList.remove('open');
+    elements.sidebarOverlay.classList.remove('show');
+}
