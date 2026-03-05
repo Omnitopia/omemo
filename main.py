@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from config import config, EndpointConfig, MemorySettings, debug_print
+from config import generate_session_key, verify_session_key, set_session_key, clear_session_key
 from models import (
     ChatMessage,
     OpenAIChatRequest,
@@ -71,7 +72,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Omni Memory",
     description="带记忆功能的OpenAI/Anthropic API中转站",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan
 )
 
@@ -92,7 +93,15 @@ templates = Jinja2Templates(directory="templates")
 # ==================== 辅助函数 ====================
 
 def get_adapter_for_model(model: str):
-    """根据模型名称获取适配器"""
+    """根据模型名称获取适配器（支持别名，检测冲突）"""
+    # 检查模型冲突
+    conflicts = config.get_model_conflicts()
+    if model in conflicts:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"模型 '{model}' 存在冲突，请在「模型列表」中设置别名。冲突端点: {', '.join(conflicts[model])}"
+        )
+    
     endpoint = config.get_endpoint_by_model(model)
     
     if not endpoint:
@@ -101,10 +110,13 @@ def get_adapter_for_model(model: str):
             detail=f"未找到模型 '{model}' 的配置"
         )
     
+    # 获取实际模型名称（解析别名）
+    actual_model = config.get_actual_model_name(model)
+    
     if endpoint.provider == "openai":
-        return OpenAIAdapter(endpoint.url, endpoint.api_key), endpoint, "openai"
+        return OpenAIAdapter(endpoint.url, endpoint.api_key), endpoint, "openai", actual_model
     elif endpoint.provider == "anthropic":
-        return AnthropicAdapter(endpoint.url, endpoint.api_key), endpoint, "anthropic"
+        return AnthropicAdapter(endpoint.url, endpoint.api_key), endpoint, "anthropic", actual_model
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -180,6 +192,12 @@ async def webui(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """登录页面"""
+    return templates.TemplateResponse("login.html", {"request": request})
+
+
 # ==================== 管理API ====================
 
 @app.get("/api/config/endpoints")
@@ -218,6 +236,42 @@ async def delete_endpoint(name: str):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="端点不存在"
         )
+    return {"success": True}
+
+
+# ==================== 模型管理API ====================
+
+@app.get("/api/models")
+async def get_models():
+    """获取所有模型列表（包含冲突信息）"""
+    return config.get_all_models()
+
+
+@app.get("/api/models/conflicts")
+async def get_model_conflicts():
+    """获取模型冲突列表"""
+    return config.get_model_conflicts()
+
+
+@app.post("/api/models/alias")
+async def set_model_alias(data: Dict[str, str]):
+    """设置模型别名"""
+    endpoint_name = data.get("endpoint_name")
+    model = data.get("model")
+    alias = data.get("alias", "")
+    
+    if not endpoint_name or not model:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="缺少必要参数"
+        )
+    
+    if not config.set_model_alias(endpoint_name, model, alias):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="端点或模型不存在"
+        )
+    
     return {"success": True}
 
 
@@ -312,6 +366,56 @@ async def delete_memory(memory_id: str):
     return {"success": True}
 
 
+@app.post("/api/models/fetch")
+async def fetch_models_from_endpoint(data: Dict[str, str]):
+    """从指定端点获取可用模型列表"""
+    url = data.get("url", "").strip().rstrip("/")
+    api_key = data.get("api_key", "").strip()
+    provider = data.get("provider", "openai")
+    
+    if not url or not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="URL和API密钥不能为空"
+        )
+    
+    try:
+        if provider == "openai":
+            adapter = OpenAIAdapter(url, api_key)
+            result = await adapter.list_models()
+            models = [m.get("id") for m in result.get("data", []) if m.get("id")]
+            await adapter.close()
+            return {"models": models, "provider": "openai"}
+        elif provider == "anthropic":
+            # Anthropic没有models端点，返回预定义列表
+            predefined_models = [
+                "claude-3-5-sonnet-20241022",
+                "claude-3-5-haiku-20241022",
+                "claude-3-opus-20240229",
+                "claude-3-sonnet-20240229",
+                "claude-3-haiku-20240307",
+                "claude-2.1",
+                "claude-2.0",
+                "claude-instant-1.2"
+            ]
+            return {"models": predefined_models, "provider": "anthropic"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"不支持的提供商: {provider}"
+            )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"获取模型列表失败: HTTP {e.response.status_code}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"获取模型列表失败: {str(e)}"
+        )
+
+
 @app.get("/api/memories/stats")
 async def get_memory_stats():
     """获取记忆统计"""
@@ -319,6 +423,78 @@ async def get_memory_stats():
     return {
         "total": len(memories),
         "recent": len([m for m in memories if m.created_at and m.created_at.startswith(time.strftime("%Y-%m"))])
+    }
+
+
+# ==================== 登录认证API ====================
+
+@app.get("/api/auth/status")
+async def get_auth_status():
+    """获取登录认证状态"""
+    return {
+        "login_enabled": config.memory_settings.login_enabled,
+        "has_session_key": config.memory_settings.session_key_hash is not None
+    }
+
+
+@app.post("/api/auth/login")
+async def login(data: Dict[str, str]):
+    """登录验证"""
+    session_key = data.get("session_key", "").strip()
+    
+    if not config.memory_settings.login_enabled:
+        return {"success": True, "message": "登录功能未启用"}
+    
+    if not session_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Session key不能为空"
+        )
+    
+    if verify_session_key(session_key):
+        return {"success": True, "message": "登录成功"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session key无效"
+        )
+
+
+@app.post("/api/auth/enable")
+async def enable_login():
+    """启用登录功能（生成新的session key）"""
+    # 总是生成新的session key
+    new_key = generate_session_key()
+    set_session_key(new_key)
+    config.memory_settings.login_enabled = True
+    config.save_memory_settings()
+    return {
+        "success": True,
+        "session_key": new_key,
+        "message": "请妥善保存此Key，关闭后将无法再次查看"
+    }
+
+
+@app.post("/api/auth/disable")
+async def disable_login():
+    """禁用登录功能（销毁session key）"""
+    config.memory_settings.login_enabled = False
+    clear_session_key()
+    config.save_memory_settings()
+    return {"success": True, "message": "登录功能已禁用，Session Key已销毁"}
+
+
+@app.post("/api/auth/reset-key")
+async def reset_session_key():
+    """重置session key"""
+    # 生成新的key
+    new_key = generate_session_key()
+    set_session_key(new_key)
+    
+    return {
+        "success": True,
+        "session_key": new_key,
+        "message": "请妥善保存此Key，关闭后将无法再次查看"
     }
 
 
@@ -348,14 +524,24 @@ async def preview_system_prompt(data: dict):
 async def list_models():
     """获取模型列表"""
     models = []
-    seen_models = set()
+    seen_names = set()
     
     for ep in config.get_enabled_endpoints():
         for model in ep.models:
-            if model not in seen_models:
-                seen_models.add(model)
+            # 查找该模型是否有别名
+            alias = None
+            for alias_name, actual_name in ep.model_aliases.items():
+                if actual_name == model:
+                    alias = alias_name
+                    break
+            
+            # 可用名称：优先别名，没有别名就用原名
+            available_name = alias if alias else model
+            
+            if available_name not in seen_names:
+                seen_names.add(available_name)
                 models.append(ModelInfo(
-                    id=model,
+                    id=available_name,
                     owned_by=ep.provider
                 ))
     
@@ -365,6 +551,19 @@ async def list_models():
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
     """聊天完成接口 - 支持OpenAI格式"""
+    # 验证登录状态
+    if config.memory_settings.login_enabled:
+        auth_header = request.headers.get("Authorization", "")
+        session_key = None
+        if auth_header.startswith("Bearer "):
+            session_key = auth_header[7:]
+        
+        if not session_key or not verify_session_key(session_key):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="未授权访问，请提供有效的Session Key"
+            )
+    
     try:
         body = await request.json()
         openai_request = OpenAIChatRequest(**body)
@@ -375,7 +574,7 @@ async def chat_completions(request: Request):
         )
     
     # 获取适配器
-    adapter, endpoint, provider = get_adapter_for_model(openai_request.model)
+    adapter, endpoint, provider, actual_model = get_adapter_for_model(openai_request.model)
     
     # 准备消息（注入记忆）
     messages = openai_request.messages
@@ -405,7 +604,8 @@ async def chat_completions(request: Request):
             debug_print(f"{'='*50}\n")
             break
     
-    # 更新请求
+    # 使用实际模型名称
+    openai_request.model = actual_model
     openai_request.messages = messages
     
     try:
@@ -733,6 +933,19 @@ async def chat_completions(request: Request):
 @app.post("/v1/messages")
 async def anthropic_messages(request: Request):
     """Anthropic格式的聊天完成接口"""
+    # 验证登录状态
+    if config.memory_settings.login_enabled:
+        auth_header = request.headers.get("Authorization", "")
+        session_key = None
+        if auth_header.startswith("Bearer "):
+            session_key = auth_header[7:]
+        
+        if not session_key or not verify_session_key(session_key):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="未授权访问，请提供有效的Session Key"
+            )
+    
     try:
         body = await request.json()
         anthropic_request = AnthropicChatRequest(**body)
@@ -746,7 +959,7 @@ async def anthropic_messages(request: Request):
     openai_request = APIConverter.anthropic_to_openai(anthropic_request)
     
     # 获取适配器
-    adapter, endpoint, provider = get_adapter_for_model(openai_request.model)
+    adapter, endpoint, provider, actual_model = get_adapter_for_model(openai_request.model)
     
     # 准备消息（注入记忆）
     messages = openai_request.messages
@@ -761,6 +974,8 @@ async def anthropic_messages(request: Request):
         else:
             messages = manager.prepare_messages_with_memories(messages, "full", all_memories)
     
+    # 使用实际模型名称
+    openai_request.model = actual_model
     openai_request.messages = messages
     
     try:

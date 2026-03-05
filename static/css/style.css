@@ -1,8 +1,8 @@
 /* Omni Memory - 样式表 */
 
 :root {
-    --primary-color: #4f46e5;
-    --primary-hover: #4338ca;
+    --primary-color: #0280FF;
+    --primary-hover: #0270e0;
     --secondary-color: #6b7280;
     --success-color: #10b981;
     --danger-color: #ef4444;
@@ -323,7 +323,8 @@ body {
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
     font-size: 14px;
-    transition: border-color 0.2s;
+    background-color: var(--card-bg);
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .form-group input:focus,
@@ -331,6 +332,7 @@ body {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(2, 128, 255, 0.1);
 }
 
 .form-row {
@@ -345,6 +347,27 @@ body {
     font-weight: 500;
     margin-bottom: 6px;
     color: var(--text-secondary);
+}
+
+.form-field input[type="text"],
+.form-field input[type="password"],
+.form-field input[type="url"],
+.form-field input[type="number"],
+.form-field select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    font-size: 14px;
+    background-color: var(--card-bg);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(2, 128, 255, 0.1);
 }
 
 .checkbox label {
@@ -438,6 +461,87 @@ body {
 }
 
 .radio-content small {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* 开关组 */
+.toggle-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.toggle-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.toggle-item:hover {
+    border-color: var(--primary-color);
+}
+
+.toggle-item input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-item input[type="checkbox"]:checked + .toggle-slider {
+    background-color: var(--primary-color);
+}
+
+.toggle-item input[type="checkbox"]:checked + .toggle-slider::after {
+    transform: translateX(20px);
+}
+
+.toggle-item input[type="checkbox"]:checked ~ .toggle-content strong {
+    color: var(--primary-color);
+}
+
+.toggle-item:has(input[type="checkbox"]:checked) {
+    border-color: var(--primary-color);
+    background-color: rgba(79, 70, 229, 0.05);
+}
+
+.toggle-slider {
+    width: 44px;
+    height: 24px;
+    background-color: var(--border-color);
+    border-radius: 12px;
+    position: relative;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: background-color 0.2s;
+}
+
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: var(--shadow);
+}
+
+.toggle-content {
+    flex: 1;
+}
+
+.toggle-content strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.toggle-content small {
     color: var(--text-secondary);
     font-size: 13px;
 }
@@ -651,6 +755,94 @@ body {
 
 .toast.info {
     background-color: var(--primary-color);
+}
+
+/* 模型选择弹窗 */
+.model-picker-status {
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+
+.model-picker-status.loading {
+    color: var(--primary-color);
+}
+
+.model-picker-status.error {
+    color: var(--danger-color);
+}
+
+.model-picker-status.success {
+    color: var(--success-color);
+}
+
+.model-picker-header {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.btn-link:hover {
+    text-decoration: underline;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.model-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+}
+
+.model-list-placeholder {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.model-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.model-item:hover {
+    background-color: var(--bg-color);
+}
+
+.model-item.selected {
+    background-color: rgba(79, 70, 229, 0.1);
+}
+
+.model-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.model-item-name {
+    flex: 1;
+    font-size: 14px;
+    word-break: break-all;
 }
 
 /* 响应式 */

@@ -20,6 +20,10 @@
                     <i class="fas fa-server"></i>
                     <span>API端点</span>
                 </a>
+                <a href="#models" class="nav-item" data-section="models">
+                    <i class="fas fa-cubes"></i>
+                    <span>模型列表</span>
+                </a>
                 <a href="#memory-settings" class="nav-item" data-section="memory-settings">
                     <i class="fas fa-cog"></i>
                     <span>记忆设置</span>
@@ -29,9 +33,13 @@
                     <span>记忆管理</span>
                     <span class="badge" id="memory-count">0</span>
                 </a>
+                <a href="#general-settings" class="nav-item" data-section="general-settings">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>设置</span>
+                </a>
             </nav>
             <div class="sidebar-footer">
-                <p>v1.0.0</p>
+                <p>v1.1.0</p>
             </div>
         </aside>
 
@@ -64,6 +72,40 @@
                                     <th>提供商</th>
                                     <th>URL</th>
                                     <th>模型</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- 动态填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 模型列表页面 -->
+            <section id="models-section" class="section">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>模型列表</h2>
+                        <div class="card-header-actions">
+                            <span class="conflict-hint" id="conflict-hint" style="display: none; color: var(--danger-color); margin-right: 16px; font-size: 13px;">
+                                <i class="fas fa-exclamation-triangle"></i> 存在模型名称冲突，请设置别名
+                            </span>
+                            <button class="btn btn-secondary" id="refresh-models-btn">
+                                <i class="fas fa-refresh"></i> 刷新
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="models-table">
+                            <thead>
+                                <tr>
+                                    <th>可用名称</th>
+                                    <th>原始模型名</th>
+                                    <th>端点</th>
+                                    <th>提供商</th>
                                     <th>状态</th>
                                     <th>操作</th>
                                 </tr>
@@ -215,6 +257,57 @@
                     </div>
                 </div>
             </section>
+
+            <!-- 通用设置页面 -->
+            <section id="general-settings-section" class="section">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>通用设置</h2>
+                        <button class="btn btn-primary" id="save-general-settings-btn">
+                            <i class="fas fa-save"></i> 保存设置
+                        </button>
+                    </div>
+                    <div class="form-container">
+                        <!-- 登录认证 -->
+                        <div class="form-group">
+                            <label class="form-label">登录认证</label>
+                            <div class="toggle-group">
+                                <label class="toggle-item">
+                                    <input type="checkbox" id="login-toggle">
+                                    <span class="toggle-slider"></span>
+                                    <div class="toggle-content">
+                                        <strong>启用登录认证</strong>
+                                        <small>开启后访问页面和调用API需要验证Session Key</small>
+                                    </div>
+                                </label>
+                            </div>
+                            <div id="login-actions" style="margin-top: 16px; display: none;">
+                                <button type="button" class="btn btn-secondary" id="reset-key-btn" style="margin-right: 8px;">
+                                    <i class="fas fa-sync"></i> 重置Key
+                                </button>
+                                <button type="button" class="btn btn-danger" id="logout-btn" onclick="logout()">
+                                    <i class="fas fa-sign-out-alt"></i> 退出登录
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 调试模式 -->
+                        <div class="form-group">
+                            <label class="form-label">调试模式</label>
+                            <div class="toggle-group">
+                                <label class="toggle-item">
+                                    <input type="checkbox" id="debug-mode-toggle">
+                                    <span class="toggle-slider"></span>
+                                    <div class="toggle-content">
+                                        <strong>启用调试模式</strong>
+                                        <small>开启后将在控制台打印详细日志，便于排查问题</small>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -248,7 +341,12 @@
                         <input type="password" id="endpoint-api-key" required placeholder="sk-...">
                     </div>
                     <div class="form-group">
-                        <label>模型列表（用逗号分隔）</label>
+                        <label>
+                            模型列表（用逗号分隔）
+                            <button type="button" class="btn btn-secondary btn-sm" id="fetch-models-btn" style="margin-left: 8px;" onclick="fetchModelsFromEndpoint()">
+                                <i class="fas fa-download"></i> 从端点获取
+                            </button>
+                        </label>
                         <input type="text" id="endpoint-models" required placeholder="gpt-4,gpt-3.5-turbo">
                     </div>
                     <div class="form-group checkbox">
@@ -262,6 +360,93 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="cancel-endpoint-btn">取消</button>
                 <button class="btn btn-primary" id="save-endpoint-btn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模型选择弹窗 -->
+    <div class="modal" id="model-picker-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>选择模型</h3>
+                <button class="btn-close" id="close-model-picker-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="model-picker-status" id="model-picker-status"></div>
+                <div class="model-picker-header">
+                    <button type="button" class="btn btn-link btn-sm" id="picker-select-all">全选</button>
+                    <button type="button" class="btn btn-link btn-sm" id="picker-deselect-all">取消全选</button>
+                </div>
+                <div class="model-list" id="model-picker-list">
+                    <div class="model-list-placeholder">加载中...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-model-picker-btn">取消</button>
+                <button class="btn btn-primary" id="confirm-model-picker-btn">确认添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Key 显示弹窗 -->
+    <div class="modal" id="session-key-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Session Key</h3>
+                <button class="btn-close" id="close-session-key-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; color: var(--danger-color); font-weight: 600; margin-bottom: 8px;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>重要提示</span>
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 14px; margin: 0;">
+                        请立即复制并妥善保存此 Key，关闭后将无法再次查看。此 Key 用于访问 API 和登录验证。
+                    </p>
+                </div>
+                <div style="background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; font-family: monospace; font-size: 14px; word-break: break-all; line-height: 1.6; cursor: pointer;" id="session-key-display" onclick="copySessionKey()">
+                </div>
+                <p style="color: var(--text-secondary); font-size: 12px; margin-top: 8px; text-align: center;">
+                    <i class="fas fa-info-circle"></i> 点击上方文本框可复制
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="copy-session-key-btn" onclick="copySessionKey()">
+                    <i class="fas fa-copy"></i> 复制到剪贴板
+                </button>
+                <button class="btn btn-secondary" id="close-session-key-btn">我已保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模型别名编辑弹窗 -->
+    <div class="modal" id="alias-modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>设置模型别名</h3>
+                <button class="btn-close" id="close-alias-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>原始模型名称</label>
+                    <input type="text" id="alias-original-model" readonly style="background: var(--bg-color);">
+                </div>
+                <div class="form-group">
+                    <label>所属端点</label>
+                    <input type="text" id="alias-endpoint" readonly style="background: var(--bg-color);">
+                </div>
+                <div class="form-group">
+                    <label>别名（留空则清除别名）</label>
+                    <input type="text" id="alias-input" placeholder="输入唯一的别名">
+                </div>
+                <p style="color: var(--text-secondary); font-size: 12px;">
+                    <i class="fas fa-info-circle"></i> 设置别名后，可通过别名调用该模型，避免名称冲突
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-alias-btn">取消</button>
+                <button class="btn btn-primary" id="save-alias-btn">保存</button>
             </div>
         </div>
     </div>

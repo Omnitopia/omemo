@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - Omni Memory</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1f2937 0%, #374151 50%, #1f2937 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .login-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 48px 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .login-logo {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0060cc 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            box-shadow: 0 10px 30px -5px rgba(2, 128, 255, 0.4);
+        }
+        
+        .login-logo i {
+            font-size: 32px;
+            color: white;
+        }
+        
+        .login-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .login-subtitle {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+        
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .input-group {
+            position: relative;
+        }
+        
+        .input-group i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 16px 16px 16px 48px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.2s;
+            background: var(--bg-color);
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        }
+        
+        .input-group input::placeholder {
+            color: var(--text-secondary);
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0060cc 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -5px rgba(2, 128, 255, 0.4);
+        }
+        
+        .login-btn:active {
+            transform: translateY(0);
+        }
+        
+        .login-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .login-btn i {
+            font-size: 16px;
+        }
+        
+        .login-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .login-error.show {
+            display: flex;
+        }
+        
+        .login-footer {
+            margin-top: 32px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        
+        .login-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 32px 24px;
+            }
+            
+            .login-title {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h1 class="login-title">欢迎回来</h1>
+                <p class="login-subtitle">请输入您的 Session Key 以继续访问</p>
+            </div>
+            
+            <form class="login-form" id="login-form">
+                <div class="login-error" id="login-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span id="error-message">Session Key 无效</span>
+                </div>
+                
+                <div class="input-group">
+                    <i class="fas fa-key"></i>
+                    <input type="password" id="session-key" placeholder="请输入 Session Key" required autocomplete="off">
+                </div>
+                
+                <button type="submit" class="login-btn" id="login-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>登录</span>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>Session Key 可在「设置」中生成</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+    
+    <script>
+        const loginForm = document.getElementById('login-form');
+        const loginBtn = document.getElementById('login-btn');
+        const loginError = document.getElementById('login-error');
+        const errorMessage = document.getElementById('error-message');
+        const sessionKeyInput = document.getElementById('session-key');
+        
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const sessionKey = sessionKeyInput.value.trim();
+            if (!sessionKey) {
+                showError('请输入 Session Key');
+                return;
+            }
+            
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>验证中...</span>';
+            loginError.classList.remove('show');
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_key: sessionKey })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // 保存 session key 到 localStorage
+                    localStorage.setItem('session_key', sessionKey);
+                    localStorage.setItem('logged_in', 'true');
+                    
+                    // 跳转到主页
+                    window.location.href = '/';
+                } else {
+                    showError(data.detail || '登录失败');
+                }
+            } catch (error) {
+                showError('网络错误，请稍后重试');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> <span>登录</span>';
+            }
+        });
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            loginError.classList.add('show');
+        }
+        
+        // 检查是否已登录
+        (async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/status');
+                const data = await response.json();
+                
+                if (!data.login_enabled) {
+                    // 登录未启用，直接跳转
+                    window.location.href = '/';
+                    return;
+                }
+                
+                // 检查本地存储的 session key 是否有效
+                const savedKey = localStorage.getItem('session_key');
+                if (savedKey) {
+                    const verifyResponse = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_key: savedKey })
+                    });
+                    
+                    if (verifyResponse.ok) {
+                        window.location.href = '/';
+                    }
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+            }
+        })();
+    </script>
+</body>
+</html>
