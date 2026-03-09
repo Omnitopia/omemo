@@ -80,6 +80,8 @@ class OpenAIAdapter:
                 msg_dict["tool_call_id"] = msg.tool_call_id
             if hasattr(msg, 'name') and msg.name:
                 msg_dict["name"] = msg.name
+            if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                msg_dict["tool_calls"] = msg.tool_calls
             messages.append(msg_dict)
         
         payload = {
@@ -103,6 +105,13 @@ class OpenAIAdapter:
         
         if request.stop is not None:
             payload["stop"] = request.stop
+        
+        # MCP/Tools 支持
+        if request.tools is not None:
+            payload["tools"] = request.tools
+        
+        if request.tool_choice is not None:
+            payload["tool_choice"] = request.tool_choice
         
         return payload
     

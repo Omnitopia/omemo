@@ -73,7 +73,17 @@ class AnthropicAdapter:
         for msg in request.messages:
             content = msg.content
             if isinstance(content, list):
-                content = [{"type": "text", "text": c.text} for c in content]
+                # 已经是列表格式，可能是tool_use/tool_result
+                formatted_content = []
+                for c in content:
+                    if isinstance(c, dict):
+                        formatted_content.append(c)
+                    elif hasattr(c, 'type'):
+                        # AnthropicContent对象
+                        formatted_content.append({"type": c.type, "text": getattr(c, 'text', '')})
+                    else:
+                        formatted_content.append({"type": "text", "text": str(c)})
+                content = formatted_content
             else:
                 content = [{"type": "text", "text": content}]
             
@@ -102,6 +112,10 @@ class AnthropicAdapter:
         
         if request.stop_sequences:
             payload["stop_sequences"] = request.stop_sequences
+        
+        # MCP/Tools 支持
+        if request.tools:
+            payload["tools"] = request.tools
         
         return payload
     

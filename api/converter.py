@@ -32,11 +32,37 @@ class APIConverter:
         for msg in request.messages:
             if msg.role == "system":
                 system_content = msg.content
-            else:
+            elif msg.role == "tool":
+                # Anthropic格式: tool结果作为assistant消息的content
+                tool_content = msg.content if isinstance(msg.content, str) else str(msg.content)
                 anthropic_messages.append(AnthropicMessage(
-                    role=msg.role,
-                    content=msg.content
+                    role="user",
+                    content=[{
+                        "type": "tool_result",
+                        "tool_use_id": msg.tool_call_id,
+                        "content": tool_content
+                    }]
                 ))
+            elif msg.role == "assistant":
+                # 检查是否有tool_calls
+                msg_dict = msg.model_dump() if hasattr(msg, 'model_dump') else dict(msg)
+                if msg_dict.get("tool_calls"):
+                    # 转换为Anthropic的tool_use格式
+                    content = []
+                    if msg.content:
+                        content.append({"type": "text", "text": msg.content})
+                    for tc in msg_dict["tool_calls"]:
+                        content.append({
+                            "type": "tool_use",
+                            "id": tc.get("id", ""),
+                            "name": tc.get("function", {}).get("name", ""),
+                            "input": tc.get("function", {}).get("arguments", {})
+                        })
+                    anthropic_messages.append(AnthropicMessage(role="assistant", content=content))
+                else:
+                    anthropic_messages.append(AnthropicMessage(role=msg.role, content=msg.content))
+            else:
+                anthropic_messages.append(AnthropicMessage(role=msg.role, content=msg.content))
         
         # 构建Anthropic请求
         anthropic_request = AnthropicChatRequest(
@@ -53,6 +79,20 @@ class APIConverter:
                 anthropic_request.stop_sequences = [request.stop]
             else:
                 anthropic_request.stop_sequences = request.stop
+        
+        # 转换tools格式 (OpenAI -> Anthropic)
+        if request.tools:
+            anthropic_tools = []
+            for tool in request.tools:
+                if tool.get("type") == "function":
+                    func = tool.get("function", {})
+                    anthropic_tools.append({
+                        "name": func.get("name", ""),
+                        "description": func.get("description", ""),
+                        "input_schema": func.get("parameters", {"type": "object"})
+                    })
+            if anthropic_tools:
+                anthropic_request.tools = anthropic_tools
         
         return anthropic_request
     

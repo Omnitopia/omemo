@@ -23,6 +23,7 @@ class ChatMessage(BaseModel):
     content: Union[str, List[Dict[str, Any]]] = Field(..., description="消息内容")
     name: Optional[str] = Field(default=None, description="名称(可选)")
     tool_call_id: Optional[str] = Field(default=None, description="工具调用ID(可选)")
+    tool_calls: Optional[List[Dict[str, Any]]] = Field(default=None, description="工具调用列表(assistant消息)")
 
     def get_text_content(self) -> str:
         """提取纯文本内容（兼容字符串和列表格式）"""
@@ -89,6 +90,9 @@ class OpenAIChatRequest(BaseModel):
     frequency_penalty: Optional[float] = Field(default=0, ge=-2, le=2)
     presence_penalty: Optional[float] = Field(default=0, ge=-2, le=2)
     stop: Optional[Union[str, List[str]]] = Field(default=None)
+    # MCP/Tools 支持
+    tools: Optional[List[Dict[str, Any]]] = Field(default=None, description="可用工具列表")
+    tool_choice: Optional[Union[str, Dict[str, Any]]] = Field(default=None, description="工具选择策略")
 
 
 class AnthropicContent(BaseModel):
@@ -114,6 +118,8 @@ class AnthropicChatRequest(BaseModel):
     stop_sequences: Optional[List[str]] = Field(default=None)
     top_p: Optional[float] = Field(default=None, ge=0, le=1)
     top_k: Optional[int] = Field(default=None)
+    # MCP/Tools 支持
+    tools: Optional[List[Dict[str, Any]]] = Field(default=None, description="可用工具列表")
 
 
 class StreamChoice(BaseModel):
